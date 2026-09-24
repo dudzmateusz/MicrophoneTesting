@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generator Dźwięku i Test Mikrofonu</title>
+    <title>Test Głośnika i Mikrofonu</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -260,11 +260,11 @@
         </div>
     </div>
 
-    <!-- LEKTOR TUWIM -->
+    <!-- LEKTOR TUWIM (NIESKOŃCZONA PĘTLA) -->
     <div class="section">
         <div class="section-title">
             <span>📖 Lektor – Tuwim („Lokomotywa”)</span>
-            <span class="status-badge" id="ttsTimer">15s</span>
+            <span class="status-badge" id="ttsTimer">OFF</span>
         </div>
         <div class="control-group">
             <select id="voiceSelect"></select>
@@ -273,7 +273,7 @@
             <textarea id="ttsText">Stoi na stacji lokomotywa, ciężka, ogromna i pot z niej spływa: tłusta oliwa. Stoi i sapie, dyszy i dmucha, żar z rozgrzanego jej brzucha bucha: Buch - jak gorąco! Uch - jak gorąco!</textarea>
         </div>
         <div class="actions">
-            <button class="btn-main btn-tts" id="toggleTtsBtn" onclick="toggleTTS()">▶ Czytaj tekst (15s)</button>
+            <button class="btn-main btn-tts" id="toggleTtsBtn" onclick="toggleTTS()">▶ Czytaj w pętli (Nieskończoność)</button>
         </div>
     </div>
 
@@ -324,7 +324,7 @@
 <script>
     let audioCtx = null, oscillator = null, gainNode = null, isPlaying = false, currentWave = 'sine';
     let micStream = null, micAnalyser = null, isMicActive = false, animFrame = null;
-    let synth = window.speechSynthesis, isSpeaking = false, ttsTimerInterval = null;
+    let synth = window.speechSynthesis, isSpeaking = false;
     let isDynamicSpeaking = false, dynamicQueueIndex = 0;
 
     const dynamicScript = [
@@ -424,9 +424,14 @@
         document.querySelectorAll('.script-line').forEach(el => el.classList.remove('active'));
     }
 
+    // LEKTOR TUWIM – NIESKOŃCZONA PĘTLA
     function toggleTTS() {
-        if (isSpeaking) stopTTS();
-        else startTTS();
+        if (isSpeaking) {
+            stopTTS();
+        } else {
+            isSpeaking = true;
+            startTTS();
+        }
     }
 
     function startTTS() {
@@ -444,33 +449,37 @@
 
         utterance.lang = 'pl-PL';
         utterance.pitch = 0.85;
-        isSpeaking = true;
 
         const btn = document.getElementById('toggleTtsBtn');
-        btn.innerText = '⏹ Zatrzymaj';
+        btn.innerText = '⏹ Zatrzymaj (Pętla ON)';
+        btn.className = 'btn-main btn-stop';
 
-        let ttsTimeLeft = 15;
-        document.getElementById('ttsTimer').innerText = ttsTimeLeft + 's';
-        
-        clearInterval(ttsTimerInterval);
-        ttsTimerInterval = setInterval(() => {
-            ttsTimeLeft--;
-            document.getElementById('ttsTimer').innerText = ttsTimeLeft + 's';
-            if (ttsTimeLeft <= 0) stopTTS();
-        }, 1000);
+        document.getElementById('ttsTimer').innerText = '♾️ PĘTLA';
 
-        utterance.onend = () => stopTTS();
-        utterance.onerror = () => stopTTS();
+        utterance.onend = () => {
+            if (isSpeaking) {
+                setTimeout(() => {
+                    if (isSpeaking) startTTS();
+                }, 300);
+            }
+        };
+
+        utterance.onerror = (e) => {
+            if (e.error !== 'canceled' && isSpeaking) {
+                stopTTS();
+            }
+        };
 
         synth.speak(utterance);
     }
 
     function stopTTS() {
-        if (synth) synth.cancel();
         isSpeaking = false;
-        clearInterval(ttsTimerInterval);
-        document.getElementById('ttsTimer').innerText = '15s';
-        document.getElementById('toggleTtsBtn').innerText = '▶ Czytaj tekst (15s)';
+        if (synth) synth.cancel();
+        document.getElementById('ttsTimer').innerText = 'OFF';
+        const btn = document.getElementById('toggleTtsBtn');
+        btn.innerText = '▶ Czytaj w pętli (Nieskończoność)';
+        btn.className = 'btn-main btn-tts';
     }
 
     function toggleTone() {
@@ -600,4 +609,3 @@
 
 </body>
 </html>
-
