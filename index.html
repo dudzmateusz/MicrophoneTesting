@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator Dźwięku i Test Mikrofonu</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+        }
+
+        .section {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-group {
+            margin-bottom: 14px;
+        }
+
+        .label-val {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .value-badge {
+            color: var(--text-main);
+            font-weight: 600;
+            font-family: monospace;
+            background: var(--border);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        input[type="range"], select, textarea {
+            width: 100%;
+            background: var(--border);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            outline: none;
+            font-size: 0.85rem;
+        }
+
+        input[type="range"] {
+            height: 6px;
+            padding: 0;
+            accent-color: var(--accent);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .btn-sm {
+            background: var(--border);
+            color: var(--text-main);
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .wave-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .wave-btn {
+            background: var(--border);
+            border: none;
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .wave-btn.active {
+            background: var(--accent);
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .btn-main {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-play { background: var(--accent); color: #0f172a; }
+        .btn-stop { background: var(--danger); color: #fff; }
+        .btn-mic { background: var(--success); color: #fff; }
+        .btn-tts { background: #8b5cf6; color: #fff; }
+        .btn-shout { background: #ec4899; color: #fff; }
+
+        canvas {
+            width: 100%;
+            height: 70px;
+            background: #000;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: block;
+        }
+
+        .meter-bar {
+            width: 100%;
+            height: 10px;
+            background: var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .meter-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--success), #f59e0b, var(--danger));
+            transition: width 0.05s ease-out;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .status-whisper { color: #38bdf8; border: 1px solid #38bdf8; }
+        .status-loud { color: #ef4444; border: 1px solid #ef4444; }
+        .status-normal { color: #10b981; border: 1px solid #10b981; }
+
+        .script-preview {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            margin-top: 8px;
+        }
+
+        .script-line.active {
+            background: rgba(56, 189, 248, 0.2);
+            border-left: 3px solid var(--accent);
+            padding-left: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Test Głośnika i Mikrofonu</h1>
+    <p class="subtitle">Narzędzie do testowania audio na telefonie</p>
+
+    <!-- TEST DYNAMIKI GLOSU -->
+    <div class="section">
+        <div class="section-title">
+            <span>🗣️ Test Dynamiki (Szept / Krzyk)</span>
+            <span id="dynamicStatusBadge" class="status-badge status-normal">GOTOWY</span>
+        </div>
+        <div class="control-group">
+            <select id="enVoiceSelect"></select>
+        </div>
+        <div class="script-preview" id="scriptPreview">
+            <div class="script-line" id="line-0"><b>[SZEPT]</b> Whispering softly... Can you hear me?</div>
+            <div class="script-line" id="line-1"><b>[KRZYK]</b> STOP! HEY! LOOK OUT BEHIND YOU!</div>
+            <div class="script-line" id="line-2"><b>[SZEPT]</b> It is completely silent now...</div>
+            <div class="script-line" id="line-3"><b>[KRZYK]</b> FIRE! RUN FOR THE EXIT RIGHT NOW!</div>
+        </div>
+        <div class="actions">
+            <button class="btn-main btn-shout" id="toggleDynamicBtn" onclick="toggleDynamicTTS()">▶ Test Dynamiki (ENG)</button>
+        </div>
+    </div>
+
+    <!-- LEKTOR TUWIM -->
+    <div class="section">
+        <div class="section-title">
+            <span>📖 Lektor – Tuwim („Lokomotywa”)</span>
+            <span class="status-badge" id="ttsTimer">15s</span>
+        </div>
+        <div class="control-group">
+            <select id="voiceSelect"></select>
+        </div>
+        <div class="control-group">
+            <textarea id="ttsText">Stoi na stacji lokomotywa, ciężka, ogromna i pot z niej spływa: tłusta oliwa. Stoi i sapie, dyszy i dmucha, żar z rozgrzanego jej brzucha bucha: Buch - jak gorąco! Uch - jak gorąco!</textarea>
+        </div>
+        <div class="actions">
+            <button class="btn-main btn-tts" id="toggleTtsBtn" onclick="toggleTTS()">▶ Czytaj tekst (15s)</button>
+        </div>
+    </div>
+
+    <!-- GENERATOR TONU -->
+    <div class="section">
+        <div class="section-title">
+            <span>🔊 Generator Tonu</span>
+        </div>
+        <div class="control-group">
+            <div class="label-val">
+                <span>Częstotliwość</span>
+                <span class="value-badge" id="freqVal">1000 Hz</span>
+            </div>
+            <input type="range" id="freq" min="20" max="10000" step="1" value="1000">
+            <div class="preset-buttons">
+                <button class="btn-sm" onclick="setFreq(100)">100 Hz</button>
+                <button class="btn-sm" onclick="setFreq(440)">440 Hz</button>
+                <button class="btn-sm" onclick="setFreq(1000)">1 kHz</button>
+                <button class="btn-sm" onclick="setFreq(5000)">5 kHz</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="wave-selector">
+                <button class="wave-btn active" onclick="setWave('sine', this)">Sinus</button>
+                <button class="wave-btn" onclick="setWave('square', this)">Kwadrat</button>
+                <button class="wave-btn" onclick="setWave('sawtooth', this)">Piła</button>
+                <button class="wave-btn" onclick="setWave('triangle', this)">Trójkąt</button>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn-main btn-play" id="toggleToneBtn" onclick="toggleTone()">Włącz Dźwięk</button>
+        </div>
+    </div>
+
+    <!-- TEST MIKROFONU -->
+    <div class="section">
+        <div class="section-title">
+            <span>🎙️ Test Mikrofonu</span>
+        </div>
+        <button class="btn-main btn-mic" id="toggleMicBtn" onclick="toggleMic()">Włącz Mikrofon</button>
+        <div class="meter-bar">
+            <div class="meter-fill" id="micMeter"></div>
+        </div>
+        <canvas id="visualizer"></canvas>
+    </div>
+</div>
+
+<script>
+    let audioCtx = null, oscillator = null, gainNode = null, isPlaying = false, currentWave = 'sine';
+    let micStream = null, micAnalyser = null, isMicActive = false, animFrame = null;
+    let synth = window.speechSynthesis, isSpeaking = false, ttsTimerInterval = null;
+    let isDynamicSpeaking = false, dynamicQueueIndex = 0;
+
+    const dynamicScript = [
+        { text: "Whispering softly... Can you hear me?", vol: 0.15, pitch: 0.85, rate: 0.85, type: "whisper", label: "🤫 SZEPT (15%)" },
+        { text: "STOP! HEY! LOOK OUT BEHIND YOU!", vol: 1.0, pitch: 1.35, rate: 1.15, type: "loud", label: "📢 KRZYK (100%)" },
+        { text: "It is completely silent now...", vol: 0.12, pitch: 0.8, rate: 0.8, type: "whisper", label: "🤫 SZEPT (12%)" },
+        { text: "FIRE! RUN FOR THE EXIT RIGHT NOW!", vol: 1.0, pitch: 1.4, rate: 1.2, type: "loud", label: "🚨 KRZYK (100%)" }
+    ];
+
+    function initAudioContext() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function populateVoiceList() {
+        if (!synth) return;
+        const voices = synth.getVoices();
+        
+        const voiceSelect = document.getElementById('voiceSelect');
+        voiceSelect.innerHTML = '';
+        const plVoices = voices.filter(v => v.lang.startsWith('pl'));
+        (plVoices.length ? plVoices : voices).forEach((v, i) => {
+            const opt = document.createElement('option');
+            opt.textContent = `${v.name} (${v.lang})`;
+            opt.value = i;
+            voiceSelect.appendChild(opt);
+        });
+
+        const enSelect = document.getElementById('enVoiceSelect');
+        enSelect.innerHTML = '';
+        const enVoices = voices.filter(v => v.lang.startsWith('en'));
+        (enVoices.length ? enVoices : voices).forEach((v, i) => {
+            const opt = document.createElement('option');
+            opt.textContent = `${v.name} (${v.lang})`;
+            opt.value = i;
+            enSelect.appendChild(opt);
+        });
+        window.plVoicesList = plVoices.length ? plVoices : voices;
+        window.enVoicesList = enVoices.length ? enVoices : voices;
+    }
+
+    populateVoiceList();
+    if (synth && synth.onvoiceschanged !== undefined) synth.onvoiceschanged = populateVoiceList;
+
+    function toggleDynamicTTS() {
+        if (isDynamicSpeaking) stopDynamicTTS();
+        else startDynamicTTS();
+    }
+
+    function startDynamicTTS() {
+        if (!synth) return alert('Brak obsługi syntezy mowy.');
+        stopTTS();
+        synth.cancel();
+        isDynamicSpeaking = true;
+        dynamicQueueIndex = 0;
+        document.getElementById('toggleDynamicBtn').innerText = '⏹ Zatrzymaj Test';
+        playNextDynamicChunk();
+    }
+
+    function playNextDynamicChunk() {
+        if (!isDynamicSpeaking || dynamicQueueIndex >= dynamicScript.length) return stopDynamicTTS();
+
+        const item = dynamicScript[dynamicQueueIndex];
+        const utterance = new SpeechSynthesisUtterance(item.text);
+
+        document.querySelectorAll('.script-line').forEach(el => el.classList.remove('active'));
+        const activeLine = document.getElementById(`line-${dynamicQueueIndex}`);
+        if (activeLine) activeLine.classList.add('active');
+
+        const badge = document.getElementById('dynamicStatusBadge');
+        badge.innerText = item.label;
+        badge.className = 'status-badge ' + (item.type === 'whisper' ? 'status-whisper' : 'status-loud');
+
+        const enSelect = document.getElementById('enVoiceSelect');
+        if (window.enVoicesList && window.enVoicesList[enSelect.value]) {
+            utterance.voice = window.enVoicesList[enSelect.value];
+        }
+
+        utterance.volume = item.vol;
+        utterance.pitch = item.pitch;
+        utterance.rate = item.rate;
+
+        utterance.onend = () => {
+            dynamicQueueIndex++;
+            setTimeout(() => { if (isDynamicSpeaking) playNextDynamicChunk(); }, 400);
+        };
+        utterance.onerror = () => stopDynamicTTS();
+
+        synth.speak(utterance);
+    }
+
+    function stopDynamicTTS() {
+        if (synth) synth.cancel();
+        isDynamicSpeaking = false;
+        document.getElementById('toggleDynamicBtn').innerText = '▶ Test Dynamiki (ENG)';
+        document.getElementById('dynamicStatusBadge').innerText = 'GOTOWY';
+        document.getElementById('dynamicStatusBadge').className = 'status-badge status-normal';
+        document.querySelectorAll('.script-line').forEach(el => el.classList.remove('active'));
+    }
+
+    function toggleTTS() {
+        if (isSpeaking) stopTTS();
+        else startTTS();
+    }
+
+    function startTTS() {
+        if (!synth) return alert('Brak obsługi syntezy mowy.');
+        stopDynamicTTS();
+        synth.cancel();
+
+        const text = document.getElementById('ttsText').value;
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        const sel = document.getElementById('voiceSelect').value;
+        if (window.plVoicesList && window.plVoicesList[sel]) {
+            utterance.voice = window.plVoicesList[sel];
+        }
+
+        utterance.lang = 'pl-PL';
+        utterance.pitch = 0.85;
+        isSpeaking = true;
+
+        const btn = document.getElementById('toggleTtsBtn');
+        btn.innerText = '⏹ Zatrzymaj';
+
+        let ttsTimeLeft = 15;
+        document.getElementById('ttsTimer').innerText = ttsTimeLeft + 's';
+        
+        clearInterval(ttsTimerInterval);
+        ttsTimerInterval = setInterval(() => {
+            ttsTimeLeft--;
+            document.getElementById('ttsTimer').innerText = ttsTimeLeft + 's';
+            if (ttsTimeLeft <= 0) stopTTS();
+        }, 1000);
+
+        utterance.onend = () => stopTTS();
+        utterance.onerror = () => stopTTS();
+
+        synth.speak(utterance);
+    }
+
+    function stopTTS() {
+        if (synth) synth.cancel();
+        isSpeaking = false;
+        clearInterval(ttsTimerInterval);
+        document.getElementById('ttsTimer').innerText = '15s';
+        document.getElementById('toggleTtsBtn').innerText = '▶ Czytaj tekst (15s)';
+    }
+
+    function toggleTone() {
+        initAudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const btn = document.getElementById('toggleToneBtn');
+        if (isPlaying) {
+            stopTone();
+            btn.innerText = 'Włącz Dźwięk';
+            btn.className = 'btn-main btn-play';
+        } else {
+            startTone();
+            btn.innerText = 'Zatrzymaj Dźwięk';
+            btn.className = 'btn-main btn-stop';
+        }
+    }
+
+    function startTone() {
+        oscillator = audioCtx.createOscillator();
+        gainNode = audioCtx.createGain();
+        oscillator.type = currentWave;
+        oscillator.frequency.setValueAtTime(document.getElementById('freq').value, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        isPlaying = true;
+    }
+
+    function stopTone() {
+        if (oscillator) {
+            oscillator.stop();
+            oscillator.disconnect();
+            oscillator = null;
+        }
+        isPlaying = false;
+    }
+
+    document.getElementById('freq').addEventListener('input', (e) => {
+        document.getElementById('freqVal').innerText = e.target.value + ' Hz';
+        if (oscillator) oscillator.frequency.setValueAtTime(e.target.value, audioCtx.currentTime);
+    });
+
+    function setFreq(val) {
+        document.getElementById('freq').value = val;
+        document.getElementById('freqVal').innerText = val + ' Hz';
+        if (oscillator) oscillator.frequency.setValueAtTime(val, audioCtx.currentTime);
+    }
+
+    function setWave(type, btn) {
+        currentWave = type;
+        document.querySelectorAll('.wave-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (oscillator) oscillator.type = type;
+    }
+
+    async function toggleMic() {
+        const btn = document.getElementById('toggleMicBtn');
+        if (isMicActive) {
+            stopMic();
+            btn.innerText = 'Włącz Mikrofon';
+            btn.className = 'btn-main btn-mic';
+        } else {
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                initAudioContext();
+                const micSource = audioCtx.createMediaStreamSource(micStream);
+                micAnalyser = audioCtx.createAnalyser();
+                micAnalyser.fftSize = 256;
+                micSource.connect(micAnalyser);
+                isMicActive = true;
+                btn.innerText = 'Wyłącz Mikrofon';
+                btn.className = 'btn-main btn-stop';
+                visualizeMic();
+            } catch (err) {
+                alert('Brak dostępu do mikrofonu.');
+            }
+        }
+    }
+
+    function stopMic() {
+        if (micStream) {
+            micStream.getTracks().forEach(track => track.stop());
+            micStream = null;
+        }
+        isMicActive = false;
+        if (animFrame) cancelAnimationFrame(animFrame);
+        document.getElementById('micMeter').style.width = '0%';
+        const canvas = document.getElementById('visualizer');
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function visualizeMic() {
+        if (!isMicActive) return;
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const bufferLength = micAnalyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        function draw() {
+            if (!isMicActive) return;
+            animFrame = requestAnimationFrame(draw);
+            micAnalyser.getByteFrequencyData(dataArray);
+
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+            let percent = Math.min(100, Math.round(((sum / bufferLength) / 128) * 100));
+            document.getElementById('micMeter').style.width = percent + '%';
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let barWidth = (canvas.width / bufferLength) * 2.5;
+            let x = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                let barHeight = (dataArray[i] / 255) * canvas.height;
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+        draw();
+    }
+</script>
+
+</body>
+</html>
+
